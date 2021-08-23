@@ -1,4 +1,4 @@
-name: model-car
+name: model-car1
 on: [push]
 jobs:
   run:
