@@ -1,176 +1,84 @@
-import os
-import numpy as np
-import pandas as pd
-
-df=pd.read_csv('cardata.csv')
-
-final_dataset=df[['Year','Selling_Price','Present_Price','Kms_Driven','Fuel_Type','Seller_Type','Transmission','Owner']]
-
-final_dataset.head()
-
-final_dataset['Current Year']=2020
-
-final_dataset.head()
-
-final_dataset['no_year']=final_dataset['Current Year']- final_dataset['Year']
-
-final_dataset.head()
-
-final_dataset.drop(['Year'],axis=1,inplace=True)
-
-final_dataset.head()
-
-final_dataset=pd.get_dummies(final_dataset,drop_first=True)
-
-final_dataset=final_dataset.drop(['Current Year'],axis=1)
-
-final_dataset.corr()
-
-import matplotlib.pyplot as plt
-
-import seaborn as sns
-#get correlations of each features in dataset
-corrmat = df.corr()
-top_corr_features = corrmat.index
-plt.figure(figsize=(20,20))
-#plot heat map
-g=sns.heatmap(df[top_corr_features].corr(),annot=True,cmap="RdYlGn")
-
-X=final_dataset.iloc[:,1:]
-y=final_dataset.iloc[:,0]
-
-X['Owner'].unique()
-
-### Feature Importance
-
-from sklearn.ensemble import ExtraTreesRegressor
-import matplotlib.pyplot as plt
-model = ExtraTreesRegressor()
-
-#Randomized Search CV
-
-# Number of trees in random forest
-n_estimators = [int(x) for x in np.linspace(start = 100, stop = 1200, num = 12)]
-# Number of features to consider at every split
-max_features = ['auto', 'sqrt']
-# Maximum number of levels in tree
-max_depth = [int(x) for x in np.linspace(5, 30, num = 6)]
-# max_depth.append(None)
-# Minimum number of samples required to split a node
-min_samples_split = [2, 5, 10, 15, 100]
-# Minimum number of samples required at each leaf node
-min_samples_leaf = [1, 2, 5, 10]
-
-# Create the random grid
-random_grid = {'n_estimators': n_estimators,
-               'max_features': max_features,
-               'max_depth': max_depth,
-               'min_samples_split': min_samples_split,
-               'min_samples_leaf': min_samples_leaf}
-
-print(random_grid)
-
-# Use the random grid to search for best hyperparameters
-# First create the base model to tune
-rf = RandomForestRegressor()
-
-
-
-# Random search of parameters, using 3 fold cross validation, 
-# search across 100 different combinations
-rf_random = RandomizedSearchCV(estimator = rf, param_distributions = random_grid,scoring='neg_mean_squared_error', n_iter = 10, cv = 5, verbose=2, random_state=42, n_jobs = 1)
-
-rf_random.fit(X_train,y_train)
-
-
-rf_random.best_params_
-
-
-
-rf_random.best_score_
-
-
-
-predictions=rf_random.predict(X_test)
-
-from sklearn import metrics
-
-print('MAE:', metrics.mean_absolute_error(y_test, predictions))
-print('MSE:', metrics.mean_squared_error(y_test, predictions))
-print('RMSE:', np.sqrt(metrics.mean_squared_error(y_test, predictions)))
-
-
-model.fit(X,y)
-
-print(model.feature_importances_)
-
-
-#plot graph of feature importances for better visualization
-feat_importances = pd.Series(model.feature_importances_, index=X.columns)
-feat_importances.nlargest(5).plot(kind='barh')
-plt.show()
-
+import pandas as pd 
 from sklearn.model_selection import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0)
-
 from sklearn.ensemble import RandomForestRegressor
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+# Set random seed
+seed = 42
 
-regressor=RandomForestRegressor()
+################################
+########## DATA PREP ###########
+################################
 
-n_estimators = [int(x) for x in np.linspace(start = 100, stop = 1200, num = 12)]
-print(n_estimators)
+# Load in the data
+df = pd.read_csv("cardata.csv")
 
-from sklearn.model_selection import RandomizedSearchCV
+# Split into train and test sections
+y = df.pop("Owner")
+X_train, X_test, y_train, y_test = train_test_split(df, y, test_size=0.2, random_state=seed)
 
-#Randomized Search CV
+#################################
+########## MODELLING ############
+#################################
 
-# Number of trees in random forest
-n_estimators = [int(x) for x in np.linspace(start = 100, stop = 1200, num = 12)]
-# Number of features to consider at every split
-max_features = ['auto', 'sqrt']
-# Maximum number of levels in tree
-max_depth = [int(x) for x in np.linspace(5, 30, num = 6)]
-# max_depth.append(None)
-# Minimum number of samples required to split a node
-min_samples_split = [2, 5, 10, 15, 100]
-# Minimum number of samples required at each leaf node
-min_samples_leaf = [1, 2, 5, 10]
+# Fit a model on the train section
+regr = RandomForestRegressor(max_depth=5, random_state=seed)
+regr.fit(X_train, y_train)
 
-# Create the random grid
-random_grid = {'n_estimators': n_estimators,
-               'max_features': max_features,
-               'max_depth': max_depth,
-               'min_samples_split': min_samples_split,
-               'min_samples_leaf': min_samples_leaf}
+# Report training set score
+train_score = regr.score(X_train, y_train) * 100
+# Report test set score
+test_score = regr.score(X_test, y_test) * 100
 
-print(random_grid)
-
-# Use the random grid to search for best hyperparameters
-# First create the base model to tune
-rf = RandomForestRegressor()
-
-
-
-# Random search of parameters, using 3 fold cross validation, 
-# search across 100 different combinations
-rf_random = RandomizedSearchCV(estimator = rf, param_distributions = random_grid,scoring='neg_mean_squared_error', n_iter = 10, cv = 5, verbose=2, random_state=42, n_jobs = 1)
-
-rf_random.fit(X_train,y_train)
+# Write scores to a file
+with open("metrics.txt", 'w') as outfile:
+        outfile.write("Training variance explained: %2.1f%%\n" % train_score)
+        outfile.write("Test variance explained: %2.1f%%\n" % test_score)
 
 
-rf_random.best_params_
+##########################################
+##### PLOT FEATURE IMPORTANCE ############
+##########################################
+# Calculate feature importance in random forest
+importances = regr.feature_importances_
+labels = df.columns
+feature_df = pd.DataFrame(list(zip(labels, importances)), columns = ["feature","importance"])
+feature_df = feature_df.sort_values(by='importance', ascending=False,)
+
+# image formatting
+axis_fs = 18 #fontsize
+title_fs = 22 #fontsize
+sns.set(style="whitegrid")
+
+ax = sns.barplot(x="importance", y="feature", data=feature_df)
+ax.set_xlabel('Importance',fontsize = axis_fs) 
+ax.set_ylabel('Feature', fontsize = axis_fs)#ylabel
+ax.set_title('Random forest\nfeature importance', fontsize = title_fs)
+
+plt.tight_layout()
+plt.savefig("feature_importance.png",dpi=120) 
+plt.close()
 
 
+##########################################
+############ PLOT RESIDUALS  #############
+##########################################
 
-rf_random.best_score_
+y_pred = regr.predict(X_test) + np.random.normal(0,0.25,len(y_test))
+y_jitter = y_test + np.random.normal(0,0.25,len(y_test))
+res_df = pd.DataFrame(list(zip(y_jitter,y_pred)), columns = ["true","pred"])
 
+ax = sns.scatterplot(x="true", y="pred",data=res_df)
+ax.set_aspect('equal')
+ax.set_xlabel('True wine quality',fontsize = axis_fs) 
+ax.set_ylabel('Predicted wine quality', fontsize = axis_fs)#ylabel
+ax.set_title('Residuals', fontsize = title_fs)
 
+# Make it pretty- square aspect ratio
+ax.plot([1, 10], [1, 10], 'black', linewidth=1)
+plt.ylim((2.5,8.5))
+plt.xlim((2.5,8.5))
 
-predictions=rf_random.predict(X_test)
-
-from sklearn import metrics
-
-print('MAE:', metrics.mean_absolute_error(y_test, predictions))
-print('MSE:', metrics.mean_squared_error(y_test, predictions))
-print('RMSE:', np.sqrt(metrics.mean_squared_error(y_test, predictions)))
-
+plt.tight_layout()
+plt.savefig("residuals.png",dpi=120) 
